@@ -454,6 +454,38 @@
       (nrepl-src-handler symbol)
     (error "nREPL not connected!")))
 
+(defun nrepl-docsrc-handler (symbol)
+  "Create a handler to lookup docs & source
+  for SYMBOL."
+  (let ((form (format "(clojure.repl/source %s)" symbol))
+        (doc-form (format "(clojure.repl/doc %s)" symbol))
+        (src-buffer (nrepl-popup-buffer nrepl-src-buffer t)))
+    (with-current-buffer src-buffer
+      (clojure-mode)
+      (nrepl-popup-buffer-mode +1))
+    (nrepl-send-string doc-form
+                       (nrepl-popup-eval-out-handler src-buffer)
+                       nrepl-buffer-ns
+                       (nrepl-current-tooling-session))
+    (nrepl-send-string form
+                       (nrepl-popup-eval-out-handler src-buffer)
+                       nrepl-buffer-ns
+                       (nrepl-current-tooling-session))))
+
+(defun nrepl-docsrc (query)
+  "Open a window with the source for the given QUERY.
+Defaults to the symbol at point.  With prefix arg or no symbol
+under point, prompts for a var."
+  (interactive "P")
+  (nrepl-read-symbol-name "Symbol: " 'nrepl-docsrc-handler query))
+
+
+(defun clojure-cheatsheet/lookup-docsrc
+  (symbol)
+  (if (nrepl-current-connection-buffer)
+      (nrepl-docsrc-handler symbol)
+    (error "nREPL not connected!")))
+
 (defun clojure-cheatsheet/item-to-helm-source
   (item)
   (let ((heading (car item))
@@ -462,7 +494,8 @@
       (candidates ,@symbols)
       (match . ((lambda (candidate)
 		  (helm-mp-3-match (format "%s %s" candidate ,heading)))))
-      (action . (("Lookup Docs" . clojure-cheatsheet/lookup-doc)
+      (action . (("Lookup Docs & Source" . clojure-cheatsheet/lookup-docsrc)
+      		 ("Lookup Docs" . clojure-cheatsheet/lookup-doc)
 		 ("Lookup Source" . clojure-cheatsheet/lookup-src))))))
 
 (defvar helm-source-clojure-cheatsheet
